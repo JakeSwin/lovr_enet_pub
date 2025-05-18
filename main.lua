@@ -4,6 +4,8 @@ local messagepack = require 'MessagePack'
 local host
 local server
 local peer
+local sendTimer = 0       -- Track time between sends
+local sendInterval = 1 / 30 -- 30 packets/sec
 
 function lovr.load()
     host = enet.host_create()
@@ -23,20 +25,23 @@ function lovr.update(dt)
     end
 
     if peer then
-        local head_x, head_y, head_z, lhand_x, lhand_y, lhand_z, rhand_x, rhand_y, rhand_z
+        sendTimer = sendTimer + dt -- Accumulate time
 
-        head_x, head_y, head_z = lovr.headset.getPosition()
-        lhand_x, lhand_y, lhand_z = lovr.headset.getPosition("hand/left")
-        rhand_x, rhand_y, rhand_z = lovr.headset.getPosition("hand/right")
+        if sendTimer >= sendInterval then
+            local head_x, head_y, head_z = lovr.headset.getPosition()
+            local lhand_x, lhand_y, lhand_z = lovr.headset.getPosition("hand/left")
+            local rhand_x, rhand_y, rhand_z = lovr.headset.getPosition("hand/right")
 
-        local data = messagepack.pack({
-            head_x, head_y, head_z,
-            lhand_x, lhand_y, lhand_z,
-            rhand_x, rhand_y, rhand_z
-        })
+            local data = messagepack.pack({
+                head_x, head_y, head_z,
+                lhand_x, lhand_y, lhand_z,
+                rhand_x, rhand_y, rhand_z
+            })
 
-        peer:send(data)
-        print("Sending packet")
+            peer:send(data)
+            print("Sending packet")
+            sendTimer = sendTimer - sendInterval -- Reset with carryover
+        end
     end
 end
 
